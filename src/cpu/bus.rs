@@ -56,7 +56,7 @@ impl Bus {
                 return self.cartridge.prg_rom[rom_location as usize];
             }
             _ => {
-                println!("IGNORING MEMORY READ AT ADDRESS {:04x}", addr);
+                // println!("IGNORING MEMORY READ AT ADDRESS {:04x}", addr);
                 return 0;
             }
         }
@@ -91,5 +91,13 @@ impl Bus {
                 println!("IGNORING MEMORY WRITE AT ADDRESS {:04x}", addr);
             }
         }
+    }
+
+    pub fn get_page(&self, page: u8) -> &[u8] {
+        let bounded = page & 0x7;
+        let start = bounded as usize * 256;
+        let end = start + 256;
+
+        return &self.ram[start..end];
     }
 }
