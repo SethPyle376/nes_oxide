@@ -105,7 +105,7 @@ impl Renderer {
         self.platform.handle_event(&mut self.imgui, event);
     }
 
-    pub fn render(&mut self, cpu: &Cpu, event_pump: &sdl2::EventPump) {
+    pub fn render(&mut self, cpu: &mut Cpu, event_pump: &sdl2::EventPump) {
         unsafe {
             self.gl
                 .bind_texture(glow::TEXTURE_2D, Some(self.ppu_texture));

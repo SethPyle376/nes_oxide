@@ -1,4 +1,5 @@
 mod cpu;
+mod ppu;
 mod renderer;
 
 pub use cpu::Bus;

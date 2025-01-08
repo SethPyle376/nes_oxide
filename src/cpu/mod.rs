@@ -9,5 +9,6 @@ pub use bus::Bus;
 pub use controller::Controller;
 pub use cpu::Cpu;
 use instructions::Instruction;
+pub use cartridge::Mirroring;
 
 pub use cartridge::Cartridge;

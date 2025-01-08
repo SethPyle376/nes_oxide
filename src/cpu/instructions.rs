@@ -177,7 +177,7 @@ impl Cpu {
         }
     }
 
-    pub fn load_instruction_data(&self, address_mode: &AddressingMode, address: Option<u16>) -> u8 {
+    pub fn load_instruction_data(&mut self, address_mode: &AddressingMode, address: Option<u16>) -> u8 {
         match address_mode {
             AddressingMode::Implied | AddressingMode::Relative => 0,
             AddressingMode::Immediate => self.bus.read(self.pc),

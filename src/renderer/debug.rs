@@ -17,7 +17,7 @@ impl Default for DebugGui {
 }
 
 impl DebugGui {
-    pub fn draw_debug(&mut self, cpu: &Cpu, ui: &mut Ui) {
+    pub fn draw_debug(&mut self, cpu: &mut Cpu, ui: &mut Ui) {
         ui.window("CPU Status")
             .size([300.0, 110.0], imgui::Condition::FirstUseEver)
             .build(|| {

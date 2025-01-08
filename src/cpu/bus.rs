@@ -1,3 +1,5 @@
+use crate::ppu::Ppu;
+
 use super::Cartridge;
 
 // RAM Addresses
@@ -17,19 +19,21 @@ const PRG_ROM_END: u16 = 0xFFFF;
 pub struct Bus {
     pub ram: Vec<u8>,
     pub cartridge: Cartridge,
+    pub ppu: Ppu
 }
 
 impl Bus {
     pub fn new(cartridge: Cartridge) -> Bus {
         let mut bus = Bus {
             ram: Vec::with_capacity(0x800),
+            ppu: Ppu::new(cartridge.chr_rom.clone(), cartridge.mirroring),
             cartridge,
         };
         bus.ram.resize(0x800, 0x00);
         return bus;
     }
 
-    pub fn read(&self, addr: u16) -> u8 {
+    pub fn read(&mut self, addr: u16) -> u8 {
         match addr {
             // Main RAM read
             RAM_BEGIN..=RAM_END => {
@@ -39,9 +43,7 @@ impl Bus {
                 println!("ATTEMPTED TO READ WRITE ONLY PPU ADDRESS {:04x}", addr);
                 return 0;
             }
-            PPU_MAP_READ => {
-                return 0;
-            }
+            PPU_MAP_READ => self.ppu.read_data(),
             0x2008..=PPU_REGISTER_END => {
                 // Mirror down address to real PPU space
                 return self.read(addr & 0x2007);
@@ -62,13 +64,13 @@ impl Bus {
         }
     }
 
-    pub fn read_u16(&self, addr: u16) -> u16 {
+    pub fn read_u16(&mut self, addr: u16) -> u16 {
         let lsb = self.read(addr);
         let msb = self.read(addr.wrapping_add(1));
         u16::from_le_bytes([lsb, msb])
     }
 
-    pub fn read_u16_zp(&self, addr: u8) -> u16 {
+    pub fn read_u16_zp(&mut self, addr: u8) -> u16 {
         let lo = self.read(addr.into());
         let hi = self.read(addr.wrapping_add(1).into());
         u16::from_le_bytes([lo, hi])

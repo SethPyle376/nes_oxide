@@ -32,7 +32,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(bus: Bus) -> Self {
+    pub fn new(mut bus: Bus) -> Self {
         Self {
             cycle: 7,
             pc: bus.read_u16(0xFFFC),
@@ -125,7 +125,7 @@ impl Cpu {
     }
 
     // Output instruction trace string and next instruction address
-    pub fn trace_instruction(&self, addr: u16) -> (String, u16) {
+    pub fn trace_instruction(&mut self, addr: u16) -> (String, u16) {
         let opcode = self.bus.read(addr);
         let instruction = Instruction::from_u8(opcode);
 
@@ -254,7 +254,7 @@ impl Cpu {
         );
     }
 
-    pub fn trace(&self) -> (String, u16) {
+    pub fn trace(&mut self) -> (String, u16) {
         let instruction = self.trace_instruction(self.pc);
         let trace_string = format!(
             "{:47} A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x} CYC:{}\n",
