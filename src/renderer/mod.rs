@@ -80,6 +80,7 @@ impl Renderer {
         let texture_id = textures.insert(ppu_texture);
 
         let mut imgui = imgui::Context::create();
+        imgui.set_ini_filename(None);
 
         let platform = imgui_sdl2_support::SdlPlatform::init(&mut imgui);
         let renderer =
