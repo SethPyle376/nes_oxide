@@ -8,11 +8,16 @@ const RAM_END: u16 = 0x1FFF;
 
 // PPU Register Addresses
 const PPU_REGISTER_BEGIN: u16 = 0x2000;
-const PPU_REGISTER_END: u16 = 0x3FFF;
-
+const PPU_CTRL: u16 = 0x2000;
+const PPU_MASK: u16 = 0x2001;
+const PPU_STATUS: u16 = 0x2002;
+const PPU_OAM_ADDR: u16 = 0x2003;
+const PPU_OAM_DATA: u16 = 0x2004;
+const PPU_SCROLL: u16 = 0x2005;
 const PPU_MAP_ADDR: u16 = 0x2006;
-const PPU_MAP_READ: u16 = 0x2007;
-
+const PPU_MAP_DATA: u16 = 0x2007;
+const PPU_REGISTER_END: u16 = 0x3FFF;
+const PPU_OAM_DMA: u16 = 0x4014;
 const PRG_ROM_BEGIN: u16 = 0x8000;
 const PRG_ROM_END: u16 = 0xFFFF;
 
@@ -30,23 +35,25 @@ impl Bus {
             cartridge,
         };
         bus.ram.resize(0x800, 0x00);
-        return bus;
+        bus
     }
 
     pub fn read(&mut self, addr: u16) -> u8 {
         match addr {
             // Main RAM read
             RAM_BEGIN..=RAM_END => {
-                return self.ram[usize::from(addr & 0x7FF)];
+                self.ram[usize::from(addr & 0x7FF)]
             }
-            0x2000 | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
+            PPU_CTRL | PPU_MASK | PPU_OAM_ADDR | PPU_SCROLL | PPU_MAP_ADDR | PPU_OAM_DMA => {
                 println!("ATTEMPTED TO READ WRITE ONLY PPU ADDRESS {:04x}", addr);
-                return 0;
+                0
             }
-            PPU_MAP_READ => self.ppu.read_data(),
+            PPU_STATUS => self.ppu.read_status(),
+            PPU_OAM_DATA => self.ppu.read_oam_data(),
+            PPU_MAP_DATA => self.ppu.read_data(),
             0x2008..=PPU_REGISTER_END => {
                 // Mirror down address to real PPU space
-                return self.read(addr & 0x2007);
+                self.read(addr & 0x2007)
             }
             PRG_ROM_BEGIN..=PRG_ROM_END => {
                 let mut rom_location = addr - 0x8000;
@@ -55,11 +62,10 @@ impl Bus {
                     rom_location = rom_location % 0x4000;
                 }
 
-                return self.cartridge.prg_rom[rom_location as usize];
+                self.cartridge.prg_rom[rom_location as usize]
             }
             _ => {
-                // println!("IGNORING MEMORY READ AT ADDRESS {:04x}", addr);
-                return 0;
+                0
             }
         }
     }
@@ -81,10 +87,29 @@ impl Bus {
             RAM_BEGIN..=RAM_END => {
                 self.ram[usize::from(addr & 0x7FF)] = value;
             }
-            PPU_MAP_ADDR => {}
+            PPU_CTRL => self.ppu.write_ctrl(value),
+            PPU_MASK => self.ppu.write_mask(value),
+            PPU_STATUS => println!("WRITE TO PPU STATUS ATTEMPTED"),
+            PPU_OAM_ADDR => self.ppu.write_oam_addr(value),
+            PPU_OAM_DATA => self.ppu.write_oam_data(value),
+            PPU_SCROLL => self.ppu.write_scroll(value),
+            PPU_MAP_ADDR => {
+                self.ppu.write_addr(value);
+            }
+            PPU_MAP_DATA => self.ppu.write_data(value),
             0x2008..=PPU_REGISTER_END => {
                 // Mirror down address to real PPU space
-                return self.write(addr & 0x2007, value);
+                self.write(addr & 0x2007, value)
+            }
+            PPU_OAM_DMA => {
+                let mut buffer = vec![0; 256];
+                let hi : u16 = (value as u16) << 8;
+
+                for i in 0..256u16 {
+                    buffer[i as usize] = self.read(hi + i);
+                }
+
+                self.ppu.write_oam_dma(buffer);
             }
             PRG_ROM_BEGIN..=PRG_ROM_END => {
                 println!("WRITE TO PRG ROM ATTEMPTED");
@@ -100,6 +125,6 @@ impl Bus {
         let start = bounded as usize * 256;
         let end = start + 256;
 
-        return &self.ram[start..end];
+        &self.ram[start..end]
     }
 }

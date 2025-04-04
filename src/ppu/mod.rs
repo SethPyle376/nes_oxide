@@ -1,5 +1,6 @@
 use crate::cpu::Mirroring;
 use registers::{AddressRegister, ControlRegister};
+use crate::ppu::registers::{MaskRegister, ScrollRegister, StatusRegister};
 
 mod registers;
 
@@ -20,20 +21,62 @@ pub struct Ppu {
   // Registers
   addr: AddressRegister,
   ctrl: ControlRegister,
+  mask: MaskRegister,
+  status: StatusRegister,
+  scroll: ScrollRegister,
+  oam_addr: u8,
+  cycle: u64,
+  scanline: u64,
+  nmi_interrupt: Option<u8>
 }
 
 impl Ppu {
   pub fn new(chr_rom: Vec<u8>, mirroring: Mirroring) -> Self {
     Ppu {
-      chr_rom: chr_rom,
+      chr_rom,
       palette_table: Vec::with_capacity(32),
       vram: Vec::with_capacity(2048),
       oam_data: Vec::with_capacity(256),
       mirroring,
       data_buffer: 0,
       addr: AddressRegister::default(),
-      ctrl: ControlRegister::default()
+      ctrl: ControlRegister::default(),
+      mask: MaskRegister::default(),
+      status: StatusRegister::default(),
+      scroll: ScrollRegister::default(),
+      oam_addr: 0,
+      cycle: 0,
+      scanline: 0,
+      nmi_interrupt: None
     }
+  }
+
+  pub fn step(&mut self, cycles: u8) -> bool {
+    self.cycle += cycles as u64;
+
+    if self.cycle >= 341 {
+      self.cycle -= 341;
+      self.scanline += 1;
+
+      if self.scanline == 241 {
+        if self.ctrl.contains(ControlRegister::GENERATE_NMI) {
+          self.status.set(StatusRegister::VBLANK_STARTED, true);
+          self.status.set(StatusRegister::SPRITE_ZERO_HIT, false);
+          if self.ctrl.contains(ControlRegister::GENERATE_NMI) {
+            self.nmi_interrupt = Some(1);
+          }
+        }
+      }
+
+      if self.scanline >= 262 {
+        self.scanline = 0;
+        self.nmi_interrupt = None;
+        self.status.set(StatusRegister::VBLANK_STARTED, false);
+        self.status.set(StatusRegister::SPRITE_ZERO_HIT, true);
+        return true;
+      }
+    }
+    false
   }
 
   pub fn write_addr(&mut self, value: u8) {
@@ -41,7 +84,49 @@ impl Ppu {
   }
 
   pub fn write_ctrl(&mut self, value: u8) {
+    let nmi_status = self.ctrl.contains(ControlRegister::GENERATE_NMI);
     self.ctrl.update(value);
+
+    if !nmi_status && self.ctrl.contains(ControlRegister::GENERATE_NMI) && self.status.contains(StatusRegister::VBLANK_STARTED) {
+      self.nmi_interrupt = Some(1);
+    }
+  }
+
+  pub fn write_mask(&mut self, value: u8) {
+    self.mask.update(value);
+  }
+
+  pub fn read_status(&mut self) -> u8 {
+    let data = self.status.bits();
+    self.status.remove(StatusRegister::VBLANK_STARTED);
+    self.scroll.latch = false;
+    self.addr.high_byte = true;
+
+    data
+  }
+
+  pub fn write_oam_addr(&mut self, value: u8) {
+    self.oam_addr = value;
+  }
+
+  pub fn write_oam_data(&mut self, value: u8) {
+    self.oam_data[self.oam_addr as usize] = value;
+    self.oam_addr = self.oam_addr.wrapping_add(1);
+  }
+
+  pub fn write_oam_dma(&mut self, data: Vec<u8>) {
+    for x in data.iter() {
+      self.oam_data[self.oam_addr as usize] = *x;
+      self.oam_addr = self.oam_addr.wrapping_add(1);
+    }
+  }
+
+  pub fn read_oam_data(&self) -> u8 {
+    self.oam_data[self.oam_addr as usize]
+  }
+
+  pub fn write_scroll(&mut self, value: u8) {
+    self.scroll.update(value);
   }
 
   pub fn read_data(&mut self) -> u8 {
@@ -68,6 +153,21 @@ impl Ppu {
       }
   }
 
+  pub fn write_data(&mut self, value: u8) {
+    let addr = self.addr.get();
+    self.addr.increment(self.ctrl.vram_addr_increment());
+
+    let mirrored_addr = self.mirror_vram_addr(addr);
+
+    match addr {
+      CHR_ROM_BEGIN..=CHR_ROM_END => println!("Attempt to write to CHR ROM"),
+      VRAM_BEGIN..=VRAM_END => self.vram[mirrored_addr as usize] = value,
+      0x3f10 | 0x3f14 | 0x3f18 | 0x3f1c => self.palette_table[(addr - 0x3F10) as usize] = value,
+      PALETTE_BEGIN..=PALETTE_END => self.palette_table[(addr - 0x3f00) as usize] = value,
+      _ => panic!("unexpected ppu write address {}", addr)
+    }
+  }
+
   fn mirror_vram_addr(&self, addr: u16) -> u16 {
     let mirrored_vram = addr & 0x2FFF;
     let vram_index = mirrored_vram - 0x2000;
@@ -79,5 +179,4 @@ impl Ppu {
       _ => vram_index
     }
   }
-
 }

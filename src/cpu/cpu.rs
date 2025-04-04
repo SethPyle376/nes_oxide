@@ -48,14 +48,17 @@ impl Cpu {
 
     pub fn step<F>(&mut self, mut inject: F)
     where
-        F: FnMut(&mut Cpu),
+        F: FnMut(&mut Cpu, bool),
     {
-        inject(self);
-
         if !self.controller.pause {
             let opcode = self.bus.read(self.pc);
             let instruction = Instruction::from_u8(opcode);
             let cycles = self.execute_instruction(&instruction);
+
+            let new_frame = self.bus.ppu.step(cycles * 3);
+
+            inject(self, new_frame);
+
             self.cycle = self.cycle + cycles as u64;
         }
 
@@ -64,8 +67,22 @@ impl Cpu {
         }
     }
 
+    pub fn nmi_interrupt(&mut self) {
+        self.push_u16(self.pc);
+
+        let mut flags = self.status.clone();
+        flags.set(CpuStatusRegister::B, false);
+        flags.set(CpuStatusRegister::U, true);
+
+        self.push(flags.bits());
+        self.status.set(CpuStatusRegister::I, true);
+
+        self.bus.ppu.step(2);
+        self.pc = self.bus.read_u16(0xFFFA);
+    }
+
     pub fn page_cross(base: u16, absolute: u16) -> bool {
-        return (base & 0xFF00) != (absolute & 0xFF00);
+        (base & 0xFF00) != (absolute & 0xFF00)
     }
 
     pub fn push(&mut self, data: u8) {
@@ -248,10 +265,10 @@ impl Cpu {
         )
         .to_ascii_uppercase();
 
-        return (
+        (
             instruction_string,
             addr.wrapping_add(instruction_bytes.len().as_()),
-        );
+        )
     }
 
     pub fn trace(&mut self) -> (String, u16) {

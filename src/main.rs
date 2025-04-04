@@ -2,6 +2,7 @@ mod cpu;
 mod ppu;
 mod renderer;
 
+use std::time::Instant;
 pub use cpu::Bus;
 pub use cpu::Cartridge;
 pub use cpu::Cpu;
@@ -16,45 +17,45 @@ fn main() {
 
     let mut renderer = Renderer::new(&sdl_context);
 
-    let bus = Bus::new(Cartridge::load("./ROMS/nestest.nes").unwrap());
+    let bus = Bus::new(Cartridge::load("./ROMS/pacman.nes").unwrap());
     let mut cpu = Cpu::new(bus);
 
-    let mut rng = rand::thread_rng();
+    let mut last_frame = Instant::now();
 
-    let mut inject = move |cpu: &mut Cpu| {
-        let width = rng.gen_range(0..256);
-        let height = rng.gen_range(0..240);
-        let byte = rng.gen_range(0..3);
+    let mut inject = move |cpu: &mut Cpu, render: bool| {
+        if render {
+                for event in event_pump.poll_iter() {
+                    renderer.handle_event(&event);
+                    match event {
+                        Event::Quit { .. } => {
+                            cpu.controller.quit = true;
+                        }
+                        Event::KeyDown { keycode, .. } => {
+                            let key = keycode.unwrap();
 
-        renderer.frame.data[(height * 256 + width) * 3 + byte] = rng.gen_range(0..255);
-
-        for event in event_pump.poll_iter() {
-            renderer.handle_event(&event);
-            match event {
-                Event::Quit { .. } => {
-                    cpu.controller.quit = true;
-                }
-                Event::KeyDown { keycode, .. } => {
-                    let key = keycode.unwrap();
-
-                    match key {
-                        Keycode::Space => cpu.controller.pause = false,
-                        Keycode::Return => {
-                            cpu.controller.step_mode = !cpu.controller.step_mode;
-                            cpu.controller.pause = false;
+                            match key {
+                                Keycode::Space => cpu.controller.pause = false,
+                                Keycode::Return => {
+                                    cpu.controller.step_mode = !cpu.controller.step_mode;
+                                    cpu.controller.pause = false;
+                                }
+                                _ => {}
+                            }
                         }
                         _ => {}
                     }
-                }
-                _ => {}
+            }
+
+            if last_frame.elapsed().as_secs_f32() > 1.0 / 60.0 {
+                renderer.render(cpu, &event_pump);
+                last_frame = Instant::now();
             }
         }
-
-        renderer.render(cpu, &event_pump);
     };
 
+    let start = Instant::now();
     loop {
-        if cpu.controller.quit || cpu.cycle > 15000 {
+        if cpu.controller.quit {
             break;
         } else {
             cpu.step(&mut inject);

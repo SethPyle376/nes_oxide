@@ -1,8 +1,8 @@
 use bitflags::bitflags;
 
 pub struct AddressRegister {
-  value: (u8, u8),
-  high_byte: bool
+  pub value: (u8, u8),
+  pub high_byte: bool
 }
 
 impl Default for AddressRegister {
@@ -28,7 +28,7 @@ impl AddressRegister {
   pub fn get(&self) -> u16 {
     let value = ((self.value.0 as u16) << 8) | self.value.1 as u16;
 
-    return value & 0x3FFF;
+    value & 0x3FFF
   }
 
   pub fn increment(&mut self, value: u8) {
@@ -68,6 +68,92 @@ impl ControlRegister {
   }
 
   pub fn update(&mut self, data: u8) {
-    self.update(data);
+    *self = ControlRegister::from_bits_truncate(data);
+  }
+
+  pub fn background_pattern_addr(&self) -> u16 {
+    if self.contains(ControlRegister::BACKGROUND_PATTERN_ADDR) {
+      0x1000
+    } else {
+      0
+    }
+  }
+}
+
+bitflags! {
+  pub struct MaskRegister: u8 {
+    const GREYSCALE = 1;
+    const SHOW_LEFT_BACKGROUND = 1 << 1;
+    const SHOW_LEFT_SPRITES = 1 << 2;
+    const SHOW_BACKGROUND = 1 << 3;
+    const SHOW_SPRITES = 1 << 4;
+    const EMPHASIZE_RED = 1 << 5;
+    const EMPHASIZE_GREEN = 1 << 6;
+    const EMPHASIZE_BLUE = 1 << 7;
+  }
+}
+
+impl Default for MaskRegister {
+  fn default() -> Self {
+    Self::from_bits_truncate(0)
+  }
+}
+
+impl MaskRegister {
+  pub fn update(&mut self, data: u8) {
+    *self = MaskRegister::from_bits_truncate(data);
+  }
+}
+
+bitflags! {
+  pub struct StatusRegister: u8 {
+    const UNUSED_1 = 1;
+    const UNUSED_2 = 1 << 1;
+    const UNUSED_3 = 1 << 2;
+    const UNUSED_4 = 1 << 3;
+    const UNUSED_5 = 1 << 4;
+    const SPRITE_OVERFLOW = 1 << 5;
+    const SPRITE_ZERO_HIT = 1 << 6;
+    const VBLANK_STARTED = 1 << 7;
+  }
+}
+
+impl Default for StatusRegister {
+  fn default() -> Self {
+    Self::from_bits_truncate(0)
+  }
+}
+
+impl StatusRegister{
+  pub fn update(&mut self, data: u8) {
+    *self = StatusRegister::from_bits_truncate(data);
+  }
+}
+
+pub struct ScrollRegister {
+  pub x: u8,
+  pub y: u8,
+  pub latch: bool,
+}
+
+impl Default for ScrollRegister {
+  fn default() -> Self {
+    Self {
+      x: 0,
+      y: 0,
+      latch: false
+    }
+  }
+}
+
+impl ScrollRegister {
+  pub fn update(&mut self, data: u8) {
+    if !self.latch {
+      self.x = data;
+    } else {
+      self.y = data;
+    }
+
+    self.latch = !self.latch;
   }
 }

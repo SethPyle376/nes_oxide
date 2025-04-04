@@ -19,7 +19,7 @@ impl Default for DebugGui {
 impl DebugGui {
     pub fn draw_debug(&mut self, cpu: &mut Cpu, ui: &mut Ui) {
         ui.window("CPU Status")
-            .size([300.0, 110.0], imgui::Condition::FirstUseEver)
+            .size([300.0, 110.0], Condition::FirstUseEver)
             .build(|| {
                 let current_instruction_trace = cpu.trace();
                 ui.text_wrapped(current_instruction_trace.0);
@@ -32,7 +32,7 @@ impl DebugGui {
             });
 
         ui.window("Memory Inspector")
-            .size([300.0, 110.0], imgui::Condition::FirstUseEver)
+            .size([300.0, 110.0], Condition::FirstUseEver)
             .build(|| {
                 ui.input_scalar("Page Index", &mut self.mem_inspect_page)
                     .step(1)
