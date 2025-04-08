@@ -50,21 +50,25 @@ impl Cpu {
     where
         F: FnMut(&mut Cpu, bool),
     {
-        if !self.controller.pause {
-            let opcode = self.bus.read(self.pc);
-            let instruction = Instruction::from_u8(opcode);
-            let cycles = self.execute_instruction(&instruction);
-
-            let new_frame = self.bus.ppu.step(cycles * 3);
-
-            inject(self, new_frame);
-
-            self.cycle = self.cycle + cycles as u64;
+        let mut new_frame = false;
+        if let Some(_nmi) = self.bus.ppu.poll_nmi_status() {
+            self.nmi_interrupt();
+            new_frame = true;
         }
+
+        let opcode = self.bus.read(self.pc);
+        let instruction = Instruction::from_u8(opcode);
+        let cycles = self.execute_instruction(&instruction);
+
+        self.bus.ppu.step(cycles * 3);
+
+        self.cycle = self.cycle + cycles as u64;
 
         if self.controller.step_mode {
             self.controller.pause = true;
         }
+
+        inject(self, new_frame || self.controller.pause);
     }
 
     pub fn nmi_interrupt(&mut self) {
@@ -138,7 +142,7 @@ impl Cpu {
             return 2;
         }
 
-        return 1;
+        1
     }
 
     // Output instruction trace string and next instruction address

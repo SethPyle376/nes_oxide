@@ -1,42 +1,56 @@
 use bitflags::bitflags;
 
 pub struct AddressRegister {
-  pub value: (u8, u8),
-  pub high_byte: bool
+    pub value: (u8, u8),
+    pub high_byte: bool,
 }
 
 impl Default for AddressRegister {
-  fn default() -> Self {
-    AddressRegister {
-      value: (0, 0),
-      high_byte: true
+    fn default() -> Self {
+        AddressRegister {
+            value: (0, 0),
+            high_byte: true,
+        }
     }
-  }
 }
 
 impl AddressRegister {
-  pub fn update(&mut self, data: u8) {
-    if self.high_byte {
-      self.value.0 = data;
-    } else {
-      self.value.1 = data;
+    pub fn update(&mut self, data: u8) {
+        if self.high_byte {
+            self.value.0 = data;
+        } else {
+            self.value.1 = data;
+        }
+
+        if self.get() > 0x3fff {
+            //mirror down addr above 0x3fff
+            self.set(self.get() & 0b11111111111111);
+        }
+
+        self.high_byte = !self.high_byte;
     }
 
-    self.high_byte = !self.high_byte;
-  }
+    fn set(&mut self, value: u16) {
+        self.value.0 = (value >> 8) as u8;
+        self.value.1 = (value & 0xff) as u8;
+    }
 
-  pub fn get(&self) -> u16 {
-    let value = ((self.value.0 as u16) << 8) | self.value.1 as u16;
+    pub fn get(&self) -> u16 {
+        ((self.value.0 as u16) << 8) | (self.value.1 as u16)
+    }
 
-    value & 0x3FFF
-  }
+    pub fn increment(&mut self, value: u8) {
+        let lo = self.value.1;
+        self.value.1 = self.value.1.wrapping_add(value);
 
-  pub fn increment(&mut self, value: u8) {
-    let sum = self.get().wrapping_add(value as u16) & 0x3FFF;
+        if lo > self.value.1 {
+            self.value.0 = self.value.0.wrapping_add(1);
+        }
 
-    self.value.0 = (sum >> 8) as u8;
-    self.value.1 = (sum & 0xFF) as u8;
-  }
+        if self.get() > 0x3fff {
+            self.set(self.get() & 0b11111111111111);
+        }
+    }
 }
 
 bitflags! {
@@ -53,31 +67,39 @@ bitflags! {
 }
 
 impl Default for ControlRegister {
-  fn default() -> Self {
-    ControlRegister::from_bits_truncate(0)
-  }
+    fn default() -> Self {
+        ControlRegister::from_bits_truncate(0)
+    }
 }
 
 impl ControlRegister {
-  pub fn vram_addr_increment(&self) -> u8 {
-    if self.contains(ControlRegister::VRAM_ADD_INCREMENT) {
-      32
-    } else {
-      1
+    pub fn vram_addr_increment(&self) -> u8 {
+        if self.contains(ControlRegister::VRAM_ADD_INCREMENT) {
+            32
+        } else {
+            1
+        }
     }
-  }
 
-  pub fn update(&mut self, data: u8) {
-    *self = ControlRegister::from_bits_truncate(data);
-  }
-
-  pub fn background_pattern_addr(&self) -> u16 {
-    if self.contains(ControlRegister::BACKGROUND_PATTERN_ADDR) {
-      0x1000
-    } else {
-      0
+    pub fn update(&mut self, data: u8) {
+        *self = ControlRegister::from_bits_truncate(data);
     }
-  }
+
+    pub fn background_pattern_addr(&self) -> u16 {
+        if self.contains(ControlRegister::BACKGROUND_PATTERN_ADDR) {
+            0x1000
+        } else {
+            0
+        }
+    }
+
+    pub fn sprite_pattern_addr(&self) -> u16 {
+        if self.contains(ControlRegister::SPRITE_PATTERN_ADDR) {
+            0x1000
+        } else {
+            0
+        }
+    }
 }
 
 bitflags! {
@@ -94,15 +116,15 @@ bitflags! {
 }
 
 impl Default for MaskRegister {
-  fn default() -> Self {
-    Self::from_bits_truncate(0)
-  }
+    fn default() -> Self {
+        Self::from_bits_truncate(0)
+    }
 }
 
 impl MaskRegister {
-  pub fn update(&mut self, data: u8) {
-    *self = MaskRegister::from_bits_truncate(data);
-  }
+    pub fn update(&mut self, data: u8) {
+        *self = MaskRegister::from_bits_truncate(data);
+    }
 }
 
 bitflags! {
@@ -119,41 +141,41 @@ bitflags! {
 }
 
 impl Default for StatusRegister {
-  fn default() -> Self {
-    Self::from_bits_truncate(0)
-  }
+    fn default() -> Self {
+        Self::from_bits_truncate(0)
+    }
 }
 
-impl StatusRegister{
-  pub fn update(&mut self, data: u8) {
-    *self = StatusRegister::from_bits_truncate(data);
-  }
+impl StatusRegister {
+    pub fn update(&mut self, data: u8) {
+        *self = StatusRegister::from_bits_truncate(data);
+    }
 }
 
 pub struct ScrollRegister {
-  pub x: u8,
-  pub y: u8,
-  pub latch: bool,
+    pub x: u8,
+    pub y: u8,
+    pub latch: bool,
 }
 
 impl Default for ScrollRegister {
-  fn default() -> Self {
-    Self {
-      x: 0,
-      y: 0,
-      latch: false
+    fn default() -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            latch: false,
+        }
     }
-  }
 }
 
 impl ScrollRegister {
-  pub fn update(&mut self, data: u8) {
-    if !self.latch {
-      self.x = data;
-    } else {
-      self.y = data;
-    }
+    pub fn update(&mut self, data: u8) {
+        if !self.latch {
+            self.x = data;
+        } else {
+            self.y = data;
+        }
 
-    self.latch = !self.latch;
-  }
+        self.latch = !self.latch;
+    }
 }

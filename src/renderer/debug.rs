@@ -23,12 +23,6 @@ impl DebugGui {
             .build(|| {
                 let current_instruction_trace = cpu.trace();
                 ui.text_wrapped(current_instruction_trace.0);
-                let mut addr = current_instruction_trace.1;
-                for _ in 0..DEBUG_INSTRUCTION_COUNT {
-                    let (trace, next) = cpu.trace_instruction(addr);
-                    ui.text_wrapped(trace);
-                    addr = next;
-                }
             });
 
         ui.window("Memory Inspector")
@@ -37,7 +31,7 @@ impl DebugGui {
                 ui.input_scalar("Page Index", &mut self.mem_inspect_page)
                     .step(1)
                     .build();
-                let zero_page = cpu.bus.get_page(self.mem_inspect_page as u8);
+                let zero_page = cpu.bus.get_page(self.mem_inspect_page);
                 if let Some(_) = ui.begin_table("zero_page_table", 16) {
                     ui.table_next_row();
                     ui.table_set_column_index(0);

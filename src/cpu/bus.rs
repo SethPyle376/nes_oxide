@@ -1,3 +1,4 @@
+use crate::cpu::joypad::Joypad;
 use crate::ppu::Ppu;
 
 use super::Cartridge;
@@ -18,21 +19,24 @@ const PPU_MAP_ADDR: u16 = 0x2006;
 const PPU_MAP_DATA: u16 = 0x2007;
 const PPU_REGISTER_END: u16 = 0x3FFF;
 const PPU_OAM_DMA: u16 = 0x4014;
+const JOYPAD_1: u16 = 0x4016;
 const PRG_ROM_BEGIN: u16 = 0x8000;
 const PRG_ROM_END: u16 = 0xFFFF;
 
 pub struct Bus {
     pub ram: Vec<u8>,
     pub cartridge: Cartridge,
-    pub ppu: Ppu
+    pub ppu: Ppu,
+    pub joypad: Joypad,
 }
 
 impl Bus {
     pub fn new(cartridge: Cartridge) -> Bus {
         let mut bus = Bus {
-            ram: Vec::with_capacity(0x800),
+            ram: vec![0x00; 0x800],
             ppu: Ppu::new(cartridge.chr_rom.clone(), cartridge.mirroring),
             cartridge,
+            joypad: Joypad::default(),
         };
         bus.ram.resize(0x800, 0x00);
         bus
@@ -41,9 +45,7 @@ impl Bus {
     pub fn read(&mut self, addr: u16) -> u8 {
         match addr {
             // Main RAM read
-            RAM_BEGIN..=RAM_END => {
-                self.ram[usize::from(addr & 0x7FF)]
-            }
+            RAM_BEGIN..=RAM_END => self.ram[usize::from(addr & 0x7FF)],
             PPU_CTRL | PPU_MASK | PPU_OAM_ADDR | PPU_SCROLL | PPU_MAP_ADDR | PPU_OAM_DMA => {
                 println!("ATTEMPTED TO READ WRITE ONLY PPU ADDRESS {:04x}", addr);
                 0
@@ -55,6 +57,7 @@ impl Bus {
                 // Mirror down address to real PPU space
                 self.read(addr & 0x2007)
             }
+            JOYPAD_1 => self.joypad.read(),
             PRG_ROM_BEGIN..=PRG_ROM_END => {
                 let mut rom_location = addr - 0x8000;
 
@@ -64,9 +67,7 @@ impl Bus {
 
                 self.cartridge.prg_rom[rom_location as usize]
             }
-            _ => {
-                0
-            }
+            _ => 0,
         }
     }
 
@@ -102,20 +103,21 @@ impl Bus {
                 self.write(addr & 0x2007, value)
             }
             PPU_OAM_DMA => {
-                let mut buffer = vec![0; 256];
-                let hi : u16 = (value as u16) << 8;
+                let mut buffer = [0; 256];
+                let hi: u16 = (value as u16) << 8;
 
                 for i in 0..256u16 {
                     buffer[i as usize] = self.read(hi + i);
                 }
 
-                self.ppu.write_oam_dma(buffer);
+                self.ppu.write_oam_dma(&buffer);
             }
+            JOYPAD_1 => self.joypad.write(value),
             PRG_ROM_BEGIN..=PRG_ROM_END => {
                 println!("WRITE TO PRG ROM ATTEMPTED");
             }
             _ => {
-                println!("IGNORING MEMORY WRITE AT ADDRESS {:04x}", addr);
+                // println!("IGNORING MEMORY WRITE AT ADDRESS {:04x}", addr);
             }
         }
     }
