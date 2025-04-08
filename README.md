@@ -4,6 +4,10 @@ A simple NES emulator built in Rust for fun and learning.
 
 Currently capable of playing simple early NES games like Donkey Kong or Pacman.
 
+## Usage
+
+`cargo run --package nes_oxide --bin nes_oxide -- --rom <PATH_TO_NES_ROM>`
+
 ## Features
 - ✅ = Done
 - 🚧 = In Progress
@@ -29,6 +33,7 @@ Currently capable of playing simple early NES games like Donkey Kong or Pacman.
 - Debug
   - 🚧VRAM Viewer Widget
   - 🚧PPU Status Viewer Widget
+- 📋WASM Build / Online Version
 - 📋APU
 
 ## Media

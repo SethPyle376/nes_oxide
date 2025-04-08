@@ -30,7 +30,7 @@ impl DebugGui {
                 ui.child_window("Left Pane")
                     .border(true)
                     .build(|| {
-                        if ui.collapsing_header("CPU Status", TreeNodeFlags::empty()) {
+                        if ui.collapsing_header("CPU Status", TreeNodeFlags::DEFAULT_OPEN) {
                             let current_instruction_trace = cpu.trace();
                             ui.text_wrapped(current_instruction_trace.0);
                         }
@@ -62,7 +62,7 @@ impl DebugGui {
                 ui.child_window("Right Pane")
                     .border(true)
                     .build(|| {
-                        if ui.collapsing_header("Emulator", TreeNodeFlags::empty()) {
+                        if ui.collapsing_header("Render", TreeNodeFlags::DEFAULT_OPEN) {
                             Image::new(*texture_id, [512.0, 480.0]).build(ui);
                         }
                     })

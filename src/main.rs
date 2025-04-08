@@ -12,8 +12,17 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use clap::Parser;
 
 const FRAME_TIME: Duration = Duration::from_nanos(16_666_667);
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Path to the ROM to load
+    #[arg(short, long)]
+    rom: String,
+}
 
 fn main() {
     let sdl_context = sdl2::init().unwrap();
@@ -21,7 +30,9 @@ fn main() {
 
     let mut renderer = Renderer::new(&sdl_context);
 
-    let bus = Bus::new(Cartridge::load("./ROMS/dk.nes").unwrap());
+    let args = Args::parse();
+
+    let bus = Bus::new(Cartridge::load(&args.rom).unwrap());
     let mut cpu = Cpu::new(bus);
 
     let mut last_frame = Instant::now();
