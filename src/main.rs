@@ -48,17 +48,6 @@ fn main() {
                         if let Some(key) = key_map.get(&keycode.unwrap()) {
                             cpu.bus.joypad.buttons.insert(*key);
                         }
-
-                        // let key = keycode.unwrap();
-                        //
-                        // match key {
-                        //     Keycode::Space => cpu.controller.pause = false,
-                        //     Keycode::Return => {
-                        //         cpu.controller.step_mode = !cpu.controller.step_mode;
-                        //         cpu.controller.pause = false;
-                        //     }
-                        //     _ => {}
-                        // }
                     }
                     Event::KeyUp { keycode, .. } => {
                         if let Some(key) = key_map.get(&keycode.unwrap()) {

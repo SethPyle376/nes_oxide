@@ -17,29 +17,45 @@ impl Default for DebugGui {
 }
 
 impl DebugGui {
-    pub fn draw_debug(&mut self, cpu: &mut Cpu, ui: &mut Ui) {
-        ui.window("CPU Status")
-            .size([300.0, 110.0], Condition::FirstUseEver)
+    pub fn draw_debug(&mut self, texture_id: &TextureId, cpu: &mut Cpu, ui: &mut Ui) {
+        let size = ui.io().display_size;
+        ui.window("Emulator")
+            .position([0.0, 0.0], Condition::Always)
+            .size(size, Condition::Always)
             .build(|| {
-                let current_instruction_trace = cpu.trace();
-                ui.text_wrapped(current_instruction_trace.0);
-            });
+                ui.columns(2, "columns", true);
 
-        ui.window("Memory Inspector")
-            .size([300.0, 110.0], Condition::FirstUseEver)
-            .build(|| {
-                ui.input_scalar("Page Index", &mut self.mem_inspect_page)
-                    .step(1)
-                    .build();
-                let zero_page = cpu.bus.get_page(self.mem_inspect_page);
-                if let Some(_) = ui.begin_table("zero_page_table", 16) {
-                    ui.table_next_row();
-                    ui.table_set_column_index(0);
-                    for i in 0..255 {
-                        ui.text(format!("{:#04X}", zero_page[i]));
-                        ui.table_next_column();
-                    }
-                }
+                ui.child_window("Left Pane")
+                    .border(true)
+                    .build(|| {
+                        if ui.collapsing_header("CPU Status", TreeNodeFlags::empty()) {
+                            let current_instruction_trace = cpu.trace();
+                            ui.text_wrapped(current_instruction_trace.0);
+                        }
+
+                        if ui.collapsing_header("Memory Usage", TreeNodeFlags::empty()) {
+                            ui.input_scalar("Page Index", &mut self.mem_inspect_page)
+                                .step(1)
+                                .build();
+                            let zero_page = cpu.bus.get_page(self.mem_inspect_page);
+                            if let Some(_) = ui.begin_table("zero_page_table", 16) {
+                                ui.table_next_row();
+                                ui.table_set_column_index(0);
+                                for i in 0..255 {
+                                    ui.text(format!("{:02X}", zero_page[i]));
+                                    ui.table_next_column();
+                                }
+                            }
+                        }
+                    });
+                ui.next_column();
+                ui.child_window("Right Pane")
+                    .border(true)
+                    .build(|| {
+                        if ui.collapsing_header("Emulator", TreeNodeFlags::empty()) {
+                            Image::new(*texture_id, [512.0, 480.0]).build(ui);
+                        }
+                    })
             });
     }
 }

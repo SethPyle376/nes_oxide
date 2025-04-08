@@ -34,6 +34,7 @@ impl Renderer {
         let window = subsystem
             .window("nes_oxide", 1024, 960)
             .position_centered()
+            .resizable()
             .opengl()
             .build()
             .unwrap();
@@ -233,10 +234,7 @@ impl Renderer {
 
         let ui = self.imgui.new_frame();
 
-        self.debug_gui.draw_debug(cpu, ui);
-
-        imgui::Image::new(self.texture_id, [512.0, 480.0]).build(ui);
-
+        self.debug_gui.draw_debug(&self.texture_id, cpu, ui);
         let draw_data = self.imgui.render();
 
         unsafe {
