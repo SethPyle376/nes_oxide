@@ -1,17 +1,19 @@
 use imgui::*;
 
-use crate::Cpu;
+use crate::{Bus, Cartridge, Cpu};
 
 const DEBUG_INSTRUCTION_COUNT: u32 = 5;
 
 pub struct DebugGui {
     pub mem_inspect_page: u8,
+    rom_path: String
 }
 
 impl Default for DebugGui {
     fn default() -> Self {
         Self {
             mem_inspect_page: 0,
+            rom_path: String::from("")
         }
     }
 }
@@ -45,6 +47,14 @@ impl DebugGui {
                                     ui.text(format!("{:02X}", zero_page[i]));
                                     ui.table_next_column();
                                 }
+                            }
+                        }
+
+                        if ui.collapsing_header("ROM Loader", TreeNodeFlags::empty()) {
+                            ui.input_text("ROM Path", &mut self.rom_path).build();
+                            if ui.button("Load ROM") {
+                                let bus = Bus::new(Cartridge::load(&self.rom_path).unwrap());
+                                cpu.reset(bus);
                             }
                         }
                     });

@@ -46,6 +46,10 @@ impl Cpu {
         }
     }
 
+    pub fn reset(&mut self, bus: Bus) {
+        *self = Self::new(bus);
+    }
+
     pub fn step<F>(&mut self, mut inject: F)
     where
         F: FnMut(&mut Cpu, bool),
