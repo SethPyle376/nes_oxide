@@ -33,5 +33,5 @@ Currently capable of playing simple early NES games like Donkey Kong or Pacman.
 
 ## Media
 
-[pacman](/media/pac.png)
-[dk](/media/dk.png)
+![pacman](/media/pac.png)
+![dk](/media/dk.png)
