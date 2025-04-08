@@ -7,8 +7,8 @@ pub struct Controller {
 impl Default for Controller {
     fn default() -> Self {
         Self {
-            step_mode: true,
-            pause: true,
+            step_mode: false,
+            pause: false,
             quit: false,
         }
     }

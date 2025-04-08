@@ -1,5 +1,4 @@
 use core::panic;
-use std::ops::Add;
 
 use super::{cpu::CpuStatusRegister, Cpu};
 
@@ -177,22 +176,34 @@ impl Cpu {
         }
     }
 
-    pub fn load_instruction_data(&self, address_mode: &AddressingMode, address: Option<u16>) -> u8 {
+    pub fn load_instruction_data(
+        &mut self,
+        address_mode: &AddressingMode,
+        instruction: &Instruction,
+        address: Option<u16>,
+    ) -> u8 {
         match address_mode {
             AddressingMode::Implied | AddressingMode::Relative => 0,
             AddressingMode::Immediate => self.bus.read(self.pc),
             AddressingMode::Accumulator => self.r_a,
-            _ => self.bus.read(
-                address.unwrap_or_else(|| panic!("No address provided for addressing instruction")),
-            ),
+            _ => self.bus.read(match instruction.operation {
+                Operation::STA => return 0,
+                Operation::STX => return 0,
+                Operation::STY => return 0,
+                _ => address
+                    .unwrap_or_else(|| panic!("No address provided for addressing instruction")),
+            }),
         }
     }
 
     pub fn execute_instruction(&mut self, instruction: &Instruction) -> u8 {
         self.pc = self.pc.wrapping_add(1);
         let instruction_load_data = self.load_instruction_address(&instruction.address_mode);
-        let instruction_data =
-            self.load_instruction_data(&instruction.address_mode, instruction_load_data.0);
+        let instruction_data = self.load_instruction_data(
+            &instruction.address_mode,
+            instruction,
+            instruction_load_data.0,
+        );
 
         self.pc = self.pc.wrapping_add(instruction.address_mode.offset());
 

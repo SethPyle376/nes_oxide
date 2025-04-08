@@ -32,7 +32,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(bus: Bus) -> Self {
+    pub fn new(mut bus: Bus) -> Self {
         Self {
             cycle: 7,
             pc: bus.read_u16(0xFFFC),
@@ -48,24 +48,45 @@ impl Cpu {
 
     pub fn step<F>(&mut self, mut inject: F)
     where
-        F: FnMut(&mut Cpu),
+        F: FnMut(&mut Cpu, bool),
     {
-        inject(self);
-
-        if !self.controller.pause {
-            let opcode = self.bus.read(self.pc);
-            let instruction = Instruction::from_u8(opcode);
-            let cycles = self.execute_instruction(&instruction);
-            self.cycle = self.cycle + cycles as u64;
+        let mut new_frame = false;
+        if let Some(_nmi) = self.bus.ppu.poll_nmi_status() {
+            self.nmi_interrupt();
+            new_frame = true;
         }
+
+        let opcode = self.bus.read(self.pc);
+        let instruction = Instruction::from_u8(opcode);
+        let cycles = self.execute_instruction(&instruction);
+
+        self.bus.ppu.step(cycles * 3);
+
+        self.cycle = self.cycle + cycles as u64;
 
         if self.controller.step_mode {
             self.controller.pause = true;
         }
+
+        inject(self, new_frame || self.controller.pause);
+    }
+
+    pub fn nmi_interrupt(&mut self) {
+        self.push_u16(self.pc);
+
+        let mut flags = self.status.clone();
+        flags.set(CpuStatusRegister::B, false);
+        flags.set(CpuStatusRegister::U, true);
+
+        self.push(flags.bits());
+        self.status.set(CpuStatusRegister::I, true);
+
+        self.bus.ppu.step(2);
+        self.pc = self.bus.read_u16(0xFFFA);
     }
 
     pub fn page_cross(base: u16, absolute: u16) -> bool {
-        return (base & 0xFF00) != (absolute & 0xFF00);
+        (base & 0xFF00) != (absolute & 0xFF00)
     }
 
     pub fn push(&mut self, data: u8) {
@@ -121,11 +142,11 @@ impl Cpu {
             return 2;
         }
 
-        return 1;
+        1
     }
 
     // Output instruction trace string and next instruction address
-    pub fn trace_instruction(&self, addr: u16) -> (String, u16) {
+    pub fn trace_instruction(&mut self, addr: u16) -> (String, u16) {
         let opcode = self.bus.read(addr);
         let instruction = Instruction::from_u8(opcode);
 
@@ -248,13 +269,13 @@ impl Cpu {
         )
         .to_ascii_uppercase();
 
-        return (
+        (
             instruction_string,
             addr.wrapping_add(instruction_bytes.len().as_()),
-        );
+        )
     }
 
-    pub fn trace(&self) -> (String, u16) {
+    pub fn trace(&mut self) -> (String, u16) {
         let instruction = self.trace_instruction(self.pc);
         let trace_string = format!(
             "{:47} A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x} CYC:{}\n",
